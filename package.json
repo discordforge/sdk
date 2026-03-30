@@ -1,6 +1,6 @@
 {
   "name": "discordforge-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "The official Node.js SDK for the DiscordForge platform",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -54,5 +54,8 @@
     "votes"
   ],
   "author": "DiscordForge",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "discordforge-sdk": "^1.0.2"
+  }
 }
