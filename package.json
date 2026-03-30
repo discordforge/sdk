@@ -1,0 +1,58 @@
+{
+  "name": "discordforge-sdk",
+  "version": "1.0.0",
+  "description": "The official Node.js SDK for the DiscordForge platform",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/discordforge/sdk.git"
+  },
+  "homepage": "https://discordforge.org",
+  "bugs": {
+    "url": "https://github.com/discordforge/sdk/issues"
+  },
+  "devDependencies": {
+    "dotenv": "^17.3.1",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.3",
+    "vitest": "^4.1.2"
+  },
+  "keywords": [
+    "discord",
+    "discordforge",
+    "discord-bot",
+    "bot-list",
+    "api",
+    "bot",
+    "sdk",
+    "wrapper",
+    "stats",
+    "votes"
+  ],
+  "author": "DiscordForge",
+  "license": "MIT"
+}
