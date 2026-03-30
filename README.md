@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/discordforge-sdk"><img src="https://img.shields.io/npm/v/discordforge-sdk.svg?style=flat-square&color=5865F2" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/discordforge-sdk"><img src="https://img.shields.io/npm/dm/discordforge-sdk.svg?style=flat-square" alt="npm downloads" /></a>
-  <a href="https://github.com/discordforge/sdk/actions"><img src="https://img.shields.io/github/actions/workflow/status/discordforge/sdk/test.yml?style=flat-square" alt="CI" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/discordforge-sdk.svg?style=flat-square" alt="license" /></a>
+  <a href="https://www.npmjs.com/package/discordforge-sdk"><img src="https://img.shields.io/npm/v/discordforge-sdk.svg?style=flat-square&color=5865F2&cacheSeconds=300" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/discordforge-sdk"><img src="https://img.shields.io/npm/dm/discordforge-sdk.svg?style=flat-square&cacheSeconds=300" alt="npm downloads" /></a>
+  <a href="https://github.com/discordforge/sdk/actions"><img src="https://img.shields.io/github/actions/workflow/status/discordforge/sdk/test.yml?style=flat-square&cacheSeconds=300" alt="CI" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/discordforge-sdk.svg?style=flat-square&cacheSeconds=300" alt="license" /></a>
 </p>
 
 ---
