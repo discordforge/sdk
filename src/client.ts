@@ -14,22 +14,25 @@ const DEFAULT_OPTIONS: Required<ClientOptions> = {
  * ```js
  * const { ForgeClient } = require("discordforge-sdk");
  *
- * const client = new ForgeClient("Your API Key", "Your Bot ID");
- *
+ * // API key only — enough for postStats() and syncCommands()
+ * const client = new ForgeClient("Your API Key");
  * await client.postStats({ serverCount: 1500 });
+ *
+ * // With botId — required for checkVote() and getBot()
+ * const client2 = new ForgeClient("Your API Key", "Your Bot ID");
+ * const bot = await client2.getBot();
  * ```
  *
  * @link {@link https://discordforge.org/support/developers | API Reference}
  */
 export class ForgeClient {
     private readonly apiKey: string;
-    private readonly botId: string;
+    private readonly botId?: string;
     private readonly options: Required<ClientOptions>;
     private readonly baseURL = "https://discordforge.org";
 
-    constructor(apiKey: string, botId: string, options?: ClientOptions) {
+    constructor(apiKey: string, botId?: string, options?: ClientOptions) {
         if (!apiKey || typeof apiKey !== 'string') throw new Error("ForgeClient requires a valid apiKey string.");
-        if (!botId || typeof botId !== 'string') throw new Error("ForgeClient requires a valid botId string.");
 
         this.apiKey = apiKey;
         this.botId = botId;
@@ -126,6 +129,7 @@ export class ForgeClient {
      * ```
      */
     public async checkVote(userId: string): Promise<VoteMetadata> {
+        if (!this.botId) throw new Error("checkVote() requires a botId. Pass it as the second argument to ForgeClient.");
         if (!userId || typeof userId !== 'string') throw new Error("userId must be a valid string");
         return await this.request<VoteMetadata>("GET", `/api/bots/${encodeURIComponent(this.botId)}/votes/check?userId=${encodeURIComponent(userId)}`);
     }
@@ -140,6 +144,7 @@ export class ForgeClient {
      * ```
      */
     public async getBot(): Promise<BotInfo> {
+        if (!this.botId) throw new Error("getBot() requires a botId. Pass it as the second argument to ForgeClient.");
         return await this.request<BotInfo>("GET", `/api/bots/${encodeURIComponent(this.botId)}`);
     }
 

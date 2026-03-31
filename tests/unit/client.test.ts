@@ -18,8 +18,8 @@ describe('ForgeClient', () => {
       expect(() => new ForgeClient('', '123')).toThrowError('requires a valid apiKey');
     });
 
-    it('throws on missing botId', () => {
-      expect(() => new ForgeClient('key', '')).toThrowError('requires a valid botId');
+    it('accepts apiKey-only construction for endpoints that do not need botId', () => {
+      expect(() => new ForgeClient('test_key')).not.toThrow();
     });
   });
 
@@ -68,6 +68,11 @@ describe('ForgeClient', () => {
 
     it('rejects with an error when userId is empty', async () => {
       await expect(client.checkVote('')).rejects.toThrowError('userId must be a valid string');
+    });
+
+    it('throws when called without a botId', async () => {
+      const keyOnlyClient = new ForgeClient('test_token');
+      await expect(keyOnlyClient.checkVote('user_abc')).rejects.toThrowError('requires a botId');
     });
   });
 
@@ -118,6 +123,11 @@ describe('ForgeClient', () => {
         expect(apiErr.status).toBe(400);
         expect((apiErr.body as any).message).toBe('Invalid payload');
       }
+    });
+
+    it('getBot throws when called without a botId', async () => {
+      const keyOnlyClient = new ForgeClient('test_token');
+      await expect(keyOnlyClient.getBot()).rejects.toThrowError('requires a botId');
     });
 
     it('retries automatically on 429 responses', async () => {

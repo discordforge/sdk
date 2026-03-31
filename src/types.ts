@@ -80,3 +80,29 @@ export interface DiscordCommand {
  * Pass either a {@link CustomCommand} or a native {@link DiscordCommand}.
  */
 export type SyncCommand = CustomCommand | DiscordCommand;
+
+/**
+ * Configuration for the {@link AutoPoster}.
+ *
+ * @example
+ * ```js
+ * const poster = new AutoPoster(forgeClient, discordClient, {
+ *   interval: 600_000, // 10 minutes
+ *   startImmediately: true
+ * });
+ * ```
+ */
+export interface AutoPosterOptions {
+    /**
+     * Posting interval in milliseconds.
+     * Must be at least 300,000 (5 minutes) to respect the API rate limit.
+     * Defaults to `300_000`.
+     */
+    interval?: number;
+    /** Whether to post stats immediately when `start()` is called. Defaults to `true`. */
+    startImmediately?: boolean;
+    /** Called when stats are posted successfully. */
+    onPost?: (stats: BotStats) => void;
+    /** Called when a posting attempt fails. */
+    onError?: (error: Error) => void;
+}

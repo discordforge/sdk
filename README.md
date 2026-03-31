@@ -58,12 +58,12 @@ console.log(`${bot.name} — ${bot.voteCount} votes`);
 
 ## API Reference
 
-### `new ForgeClient(apiKey, botId, options?)`
+### `new ForgeClient(apiKey, botId?, options?)`
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `apiKey` | `string` | Your DiscordForge API key |
-| `botId` | `string` | Your bot's Discord snowflake ID |
+| `botId` | `string?` | Your bot's Discord snowflake ID (required for `checkVote` and `getBot`) |
 | `options.timeout` | `number` | Request timeout in ms (default: `10000`) |
 | `options.retries` | `number` | Auto-retry count on failure (default: `3`) |
 
@@ -75,6 +75,34 @@ console.log(`${bot.name} — ${bot.voteCount} votes`);
 | `checkVote(userId)` | `Promise<VoteMetadata>` | Check if a user voted in the last 12h | 60 req / min |
 | `getBot()` | `Promise<BotInfo>` | Fetch your bot's public profile | — |
 | `syncCommands(commands)` | `Promise<{ success, synced }>` | Sync up to 200 slash commands | — |
+
+### `new AutoPoster(forgeClient, discordClient, options?)`
+
+Automatically posts stats to DiscordForge on a fixed interval. Works with discord.js, Eris, or any client that exposes `guilds.cache.size`.
+
+```js
+const { ForgeClient, AutoPoster } = require("discordforge-sdk");
+
+const forge = new ForgeClient("YOUR_API_KEY");
+const poster = new AutoPoster(forge, discordClient);
+
+poster.on("post", (stats) => console.log(`Posted: ${stats.serverCount} servers`));
+poster.on("error", (err) => console.error(err));
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `interval` | `number` | `300000` | Posting interval in ms (min: 5 minutes) |
+| `startImmediately` | `boolean` | `true` | Post stats as soon as the client is ready |
+| `onPost` | `function` | — | Callback fired after each successful post |
+| `onError` | `function` | — | Callback fired on posting failure |
+
+| Method | Description |
+|--------|-------------|
+| `start()` | Start the loop (called automatically on client ready) |
+| `stop()` | Pause the loop |
+| `destroy()` | Stop and remove all listeners |
+| `isRunning` | Whether the poster is active |
 
 ### Types
 
