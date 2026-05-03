@@ -173,3 +173,7 @@ See the [`examples/`](./examples) directory:
 ## License
 
 [MIT](./LICENSE) © DiscordForge
+
+## Forge Bot Widget
+
+[![Forge Widget](https://discordforge.org/api/widget/bot/1446137754206474392?lang=pl&size=large)](https://discordforge.org/bot/1446137754206474392)
