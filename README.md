@@ -176,4 +176,4 @@ See the [`examples/`](./examples) directory:
 
 ## Forge Bot Widget
 
-[![Forge Widget](https://discordforge.org/api/widget/bot/1446137754206474392?lang=pl&size=large)](https://discordforge.org/bot/1446137754206474392)
+[![Forge Widget](https://discordforge.org/api/widget/bot/1446137754206474392?lang=en&size=large)](https://discordforge.org/bot/1446137754206474392)
