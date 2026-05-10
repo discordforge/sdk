@@ -18,7 +18,7 @@ bot.once("ready", async () => {
         }
     }, 30 * 60 * 1000);
 
-    console.log(`${bot.user.tag} is online — stats synced to DiscordForge`);
+    console.log(`${bot.user.tag} is online – stats synced to DiscordForge`);
 });
 
 bot.login("YOUR_BOT_TOKEN");

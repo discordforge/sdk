@@ -8,7 +8,7 @@
  *   await client.postStats({ serverCount: 100 });
  * } catch (err) {
  *   if (err instanceof ForgeAPIError && err.status === 429) {
- *     console.log(`Rate limited — retry after ${err.retryAfter}s`);
+ *     console.log(`Rate limited – retry after ${err.retryAfter}s`);
  *   }
  * }
  * ```

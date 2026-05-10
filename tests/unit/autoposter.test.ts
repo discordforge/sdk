@@ -64,7 +64,7 @@ describe('AutoPoster', () => {
     const discord = createMockDiscordClient(10, false);
     new AutoPoster(forge, discord);
 
-    // Nothing posted yet — client not ready
+    // Nothing posted yet – client not ready
     await vi.advanceTimersByTimeAsync(0);
     expect(mockFetch).not.toHaveBeenCalled();
 

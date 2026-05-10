@@ -53,7 +53,7 @@ import { ForgeClient } from "discordforge-sdk";
 
 const client = new ForgeClient("YOUR_API_KEY", "YOUR_BOT_ID");
 const bot = await client.getBot();
-console.log(`${bot.name} — ${bot.voteCount} votes`);
+console.log(`${bot.name} – ${bot.voteCount} votes`);
 ```
 
 ## API Reference
@@ -72,9 +72,9 @@ console.log(`${bot.name} — ${bot.voteCount} votes`);
 | Method | Returns | Description | Rate Limit |
 |--------|---------|-------------|------------|
 | `postStats(stats)` | `Promise<void>` | Update your bot's server/shard/user stats | 1 req / 5 min |
-| `checkVote(userId)` | `Promise<VoteMetadata>` | Check if a user voted in the last 12h | 60 req / min |
-| `getBot()` | `Promise<BotInfo>` | Fetch your bot's public profile | — |
-| `syncCommands(commands)` | `Promise<{ success, synced }>` | Sync up to 200 slash commands | — |
+| `checkVote(userId)` | `Promise<VoteMetadata>` | Check if a user voted in the last 8h | 60 req / min |
+| `getBot()` | `Promise<BotInfo>` | Fetch your bot's public profile | – |
+| `syncCommands(commands)` | `Promise<{ success, synced }>` | Sync up to 200 slash commands | – |
 
 ### `new AutoPoster(forgeClient, discordClient, options?)`
 
@@ -94,8 +94,8 @@ poster.on("error", (err) => console.error(err));
 |--------|------|---------|-------------|
 | `interval` | `number` | `300000` | Posting interval in ms (min: 5 minutes) |
 | `startImmediately` | `boolean` | `true` | Post stats as soon as the client is ready |
-| `onPost` | `function` | — | Callback fired after each successful post |
-| `onError` | `function` | — | Callback fired on posting failure |
+| `onPost` | `function` | – | Callback fired after each successful post |
+| `onError` | `function` | – | Callback fired on posting failure |
 
 | Method | Description |
 |--------|-------------|
@@ -130,7 +130,7 @@ bot.once("ready", async () => {
     await forge.postStats({ serverCount: bot.guilds.cache.size });
   }, 30 * 60 * 1000);
 
-  console.log(`${bot.user.tag} is online — stats synced to DiscordForge`);
+  console.log(`${bot.user.tag} is online – stats synced to DiscordForge`);
 });
 
 bot.login("YOUR_BOT_TOKEN");

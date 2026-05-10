@@ -14,11 +14,11 @@ const DEFAULT_OPTIONS: Required<ClientOptions> = {
  * ```js
  * const { ForgeClient } = require("discordforge-sdk");
  *
- * // API key only — enough for postStats() and syncCommands()
+ * // API key only – enough for postStats() and syncCommands()
  * const client = new ForgeClient("Your API Key");
  * await client.postStats({ serverCount: 1500 });
  *
- * // With botId — required for checkVote() and getBot()
+ * // With botId – required for checkVote() and getBot()
  * const client2 = new ForgeClient("Your API Key", "Your Bot ID");
  * const bot = await client2.getBot();
  * ```
@@ -116,7 +116,7 @@ export class ForgeClient {
     }
 
     /**
-     * Check if a user has voted for your bot in the last 12 hours.
+     * Check if a user has voted for your bot in the last 8 hours.
      *
      * Rate limit: **60 requests / minute**.
      *

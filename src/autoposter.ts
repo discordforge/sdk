@@ -1,7 +1,7 @@
 import { ForgeClient } from "./client";
 import { AutoPosterOptions, BotStats } from "./types";
 
-const MIN_INTERVAL = 300_000; // 5 minutes — matches the API rate limit
+const MIN_INTERVAL = 300_000; // 5 minutes – matches the API rate limit
 
 /**
  * Automatically posts bot statistics to DiscordForge on a fixed interval.
@@ -61,8 +61,8 @@ export class AutoPoster {
     /**
      * Register an event listener.
      *
-     * - `"post"` — fired after each successful stats post.
-     * - `"error"` — fired when a posting attempt fails.
+     * - `"post"` – fired after each successful stats post.
+     * - `"error"` – fired when a posting attempt fails.
      */
     public on(event: "post", listener: (stats: BotStats) => void): this;
     public on(event: "error", listener: (err: Error) => void): this;
@@ -114,7 +114,7 @@ export class AutoPoster {
             if (this.listeners.error.length > 0) {
                 for (const fn of this.listeners.error) fn(error);
             }
-            // Swallow the error — never crash the host process.
+            // Swallow the error – never crash the host process.
         }
     }
 

@@ -5,7 +5,7 @@ Runnable code samples demonstrating common SDK usage patterns.
 | File | Description |
 |------|-------------|
 | `1-posting-stats.js` | Post server and shard counts to DiscordForge |
-| `2-checking-votes.js` | Check if a user voted in the last 12 hours |
+| `2-checking-votes.js` | Check if a user voted in the last 8 hours |
 | `3-syncing-commands.ts` | Sync slash commands to the DiscordForge panel (TypeScript) |
 | `4-discord-js-integration.js` | Auto-post stats from a discord.js bot on an interval |
 

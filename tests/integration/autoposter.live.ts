@@ -34,7 +34,7 @@ const poster = new AutoPoster(forge, mockDiscordClient, {
     onError: (err) => {
         // 429 is expected if we posted recently
         if (err.message.includes("429")) {
-            console.log("⚠️  Got 429 (rate limited) — API is responding, AutoPoster works correctly.");
+            console.log("⚠️  Got 429 (rate limited) – API is responding, AutoPoster works correctly.");
         } else {
             console.error("❌ Error:", err.message);
         }

@@ -29,7 +29,7 @@ export interface BotStats {
 
 /** Vote check response returned by {@link ForgeClient.checkVote}. */
 export interface VoteMetadata {
-    /** Whether the user has voted in the last 12 hours. */
+    /** Whether the user has voted in the last 8 hours. */
     hasVoted: boolean;
     /** ISO-8601 timestamp of the last vote, if any. */
     votedAt?: string;

@@ -35,7 +35,7 @@ suite('ForgeClient (live)', () => {
       });
     } catch (err) {
       if (err instanceof ForgeAPIError && err.status === 429) {
-        return; // rate-limited — expected when running tests frequently
+        return; // rate-limited – expected when running tests frequently
       }
       throw err;
     }
