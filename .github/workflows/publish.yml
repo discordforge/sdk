@@ -1,18 +1,14 @@
 name: Publish to npm
 
 # Triggered when a GitHub Release is published. Builds the package and publishes
-# to npm using Trusted Publishing (OIDC) - no NPM_TOKEN required.
+# to npm using an automation token (NPM_TOKEN secret).
 #
-# Requires one-time setup on npm:
-#   https://www.npmjs.com/package/discordforge-sdk/access
-#   -> Trusted Publisher -> GitHub Actions
-#       Organization/user: discordforge
-#       Repository:        sdk
-#       Workflow filename: publish.yml
-#       Environment:       npm
-#
-# And a GitHub environment named "npm" with required reviewers set
-# (so maintainers must approve before the package actually ships).
+# Setup:
+#   1. Create automation token: https://www.npmjs.com/settings/~/tokens
+#      -> Generate new token -> Classic -> Automation
+#   2. Add as repo secret: Settings -> Secrets and variables -> Actions
+#      Name: NPM_TOKEN
+#   3. Gated by "npm" environment reviewers.
 
 on:
   release:
@@ -25,7 +21,6 @@ jobs:
     environment: npm
     permissions:
       contents: read
-      id-token: write  # required for npm Trusted Publishing (OIDC)
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -60,5 +55,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm (with provenance)
-        run: npm publish --provenance --access public
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
