@@ -1,0 +1,64 @@
+name: Publish to npm
+
+# Triggered when a GitHub Release is published. Builds the package and publishes
+# to npm using Trusted Publishing (OIDC) - no NPM_TOKEN required.
+#
+# Requires one-time setup on npm:
+#   https://www.npmjs.com/package/discordforge-sdk/access
+#   -> Trusted Publisher -> GitHub Actions
+#       Organization/user: discordforge
+#       Repository:        sdk
+#       Workflow filename: publish.yml
+#       Environment:       npm
+#
+# And a GitHub environment named "npm" with required reviewers set
+# (so maintainers must approve before the package actually ships).
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write  # required for npm Trusted Publishing (OIDC)
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 22.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify version consistency (tag = package.json)
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          TAG_VERSION="${TAG#v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+
+          echo "Git tag:      $TAG (version: $TAG_VERSION)"
+          echo "package.json: $PKG_VERSION"
+
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match package.json ($PKG_VERSION)"
+            exit 1
+          fi
+          echo "✓ Versions match: $TAG_VERSION"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm (with provenance)
+        run: npm publish --provenance --access public

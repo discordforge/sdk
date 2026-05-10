@@ -54,8 +54,5 @@
     "votes"
   ],
   "author": "DiscordForge",
-  "license": "MIT",
-  "dependencies": {
-    "discordforge-sdk": "^1.0.3"
-  }
+  "license": "MIT"
 }
