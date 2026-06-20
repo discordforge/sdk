@@ -170,6 +170,18 @@ See the [`examples/`](./examples) directory:
 - [API Documentation](https://discordforge.org/support/developers)
 - [npm Package](https://www.npmjs.com/package/discordforge-sdk)
 
+## 🎯 Smart Promotion with the Engagement Algorithm
+
+Stop forcing your community to endlessly type vote commands. **DiscordForge.org** replaces outdated upvote systems with an advanced, automated ranking system that favors real utility and activity.
+
+When you list your project on DiscordForge, your positioning in the catalog and featured sections is driven entirely by our three-pillar **Engagement Algorithm**:
+
+1. **Engagement Velocity (40%)** – Driven by real-time velocity of profile views, clicks, and recent reviews. The more your project is actually explored and interacted with on the site, the higher it scales.
+2. **Recency Weight (40%)** – A built-in mechanism that boosts new and freshly updated projects, leveling the playing field for indie developers against established giants.
+3. **Project Quality (20%)** – Evaluates your profile's completeness, verification benchmarks, and authentic community ratings.
+
+This data-driven approach ensures that high-quality, engaging communities and tools organically win the top spots over stagnant, dead projects.
+
 ## License
 
 [MIT](./LICENSE) © DiscordForge
