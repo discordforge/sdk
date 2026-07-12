@@ -32,18 +32,19 @@ export class AutoPoster {
     private readonly interval: number;
     private readonly startImmediately: boolean;
     private timer: ReturnType<typeof setInterval> | null = null;
+    private posting = false;
     private listeners: { post: Array<(stats: BotStats) => void>; error: Array<(err: Error) => void> } = {
         post: [],
         error: []
     };
 
     constructor(forge: ForgeClient, discordClient: DiscordLikeClient, options?: AutoPosterOptions) {
-        if (!forge) throw new Error("AutoPoster requires a ForgeClient instance.");
-        if (!discordClient) throw new Error("AutoPoster requires a Discord client instance.");
-
         const interval = options?.interval ?? MIN_INTERVAL;
+        if (!Number.isFinite(interval)) {
+            throw new Error("interval must be a finite number");
+        }
         if (interval < MIN_INTERVAL) {
-            throw new Error(`AutoPoster interval must be at least ${MIN_INTERVAL}ms (5 minutes) to respect rate limits.`);
+            throw new Error(`AutoPoster interval must be at least ${String(MIN_INTERVAL)}ms (5 minutes) to respect rate limits.`);
         }
 
         this.forge = forge;
@@ -66,7 +67,7 @@ export class AutoPoster {
      */
     public on(event: "post", listener: (stats: BotStats) => void): this;
     public on(event: "error", listener: (err: Error) => void): this;
-    public on(event: string, listener: (...args: any[]) => void): this {
+    public on(event: string, listener: (...args: never[]) => void): this {
         if (event === "post") this.listeners.post.push(listener as (stats: BotStats) => void);
         if (event === "error") this.listeners.error.push(listener as (err: Error) => void);
         return this;
@@ -77,10 +78,10 @@ export class AutoPoster {
         if (this.timer) return; // already running
 
         if (this.startImmediately) {
-            this.post();
+            void this.post();
         }
 
-        this.timer = setInterval(() => this.post(), this.interval);
+        this.timer = setInterval(() => { void this.post(); }, this.interval);
     }
 
     /** Stop the posting loop. Can be restarted with `start()`. */
@@ -105,6 +106,9 @@ export class AutoPoster {
 
     /** Collect stats from the Discord client and post them. */
     private async post(): Promise<void> {
+        if (this.posting) return;
+        this.posting = true;
+
         try {
             const stats = this.collectStats();
             await this.forge.postStats(stats);
@@ -115,12 +119,14 @@ export class AutoPoster {
                 for (const fn of this.listeners.error) fn(error);
             }
             // Swallow the error – never crash the host process.
+        } finally {
+            this.posting = false;
         }
     }
 
     /** Read guild/shard counts from the Discord client using duck-typed access. */
     private collectStats(): BotStats {
-        const client = this.discordClient as any;
+        const client = this.discordClient;
 
         const serverCount: number =
             client.guilds?.cache?.size ??   // discord.js
@@ -142,7 +148,7 @@ export class AutoPoster {
 
     /** Wait for the Discord client's `ready` event, then start the loop. */
     private waitForReady(): void {
-        const client = this.discordClient as any;
+        const client = this.discordClient;
 
         // If the client is already ready, start immediately.
         if (client.isReady?.() || client.ready) {
@@ -152,7 +158,7 @@ export class AutoPoster {
 
         // Otherwise, wait for the "ready" event (works with discord.js, eris, etc.)
         if (typeof client.once === "function") {
-            client.once("ready", () => this.start());
+            client.once("ready", () => { this.start(); });
         } else {
             // Fallback: start right away.
             this.start();
@@ -171,5 +177,5 @@ export interface DiscordLikeClient {
     users?: { cache?: { size: number }; size?: number };
     isReady?: () => boolean;
     ready?: boolean;
-    once?: (event: string, listener: (...args: any[]) => void) => any;
+    once?: (event: string, listener: () => void) => void;
 }

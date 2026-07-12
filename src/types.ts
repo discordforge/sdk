@@ -48,7 +48,7 @@ export interface BotInfo {
     /** Last reported server count. */
     serverCount: number;
     /** Additional fields returned by the API. */
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 /** Structured error body returned by the DiscordForge API on failure. */
@@ -71,8 +71,8 @@ export interface DiscordCommand {
     name: string;
     description: string;
     type?: number;
-    options?: any[];
-    [key: string]: any;
+    options?: unknown[];
+    [key: string]: unknown;
 }
 
 /**

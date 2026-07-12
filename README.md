@@ -64,6 +64,7 @@ console.log(`${bot.name} – ${bot.voteCount} votes`);
 |-----------|------|-------------|
 | `apiKey` | `string` | Your DiscordForge API key |
 | `botId` | `string?` | Your bot's Discord snowflake ID (required for `checkVote` and `getBot`) |
+| `options.version` | `string` | Reserved for API versioning; currently does not alter the stable `/api/...` paths |
 | `options.timeout` | `number` | Request timeout in ms (default: `10000`) |
 | `options.retries` | `number` | Auto-retry count on failure (default: `3`) |
 
@@ -103,6 +104,8 @@ poster.on("error", (err) => console.error(err));
 | `stop()` | Pause the loop |
 | `destroy()` | Stop and remove all listeners |
 | `isRunning` | Whether the poster is active |
+
+`serverCount`, `shardCount`, `userCount`, and `voiceConnections` must be finite, non-negative numbers. The poster skips a tick while a previous stats request is still pending.
 
 ### Types
 

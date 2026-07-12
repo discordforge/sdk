@@ -3,7 +3,7 @@ import { ForgeClient } from '../../src/client';
 import { ForgeAPIError } from '../../src/errors';
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch as any;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('ForgeClient', () => {
   let client: ForgeClient;
@@ -21,9 +21,28 @@ describe('ForgeClient', () => {
     it('accepts apiKey-only construction for endpoints that do not need botId', () => {
       expect(() => new ForgeClient('test_key')).not.toThrow();
     });
+
+    it('rejects invalid timeout and retry options', () => {
+      expect(() => new ForgeClient('test_key', undefined, { timeout: 0 }))
+        .toThrowError('timeout must be a positive finite number');
+      expect(() => new ForgeClient('test_key', undefined, { retries: -1 }))
+        .toThrowError('retries must be a non-negative integer');
+      expect(() => new ForgeClient('test_key', undefined, { retries: 1.5 }))
+        .toThrowError('retries must be a non-negative integer');
+    });
   });
 
   describe('postStats', () => {
+    it('rejects invalid statistics counters before making a request', async () => {
+      await expect(client.postStats({ serverCount: -1 })).rejects
+        .toThrowError('serverCount must be a non-negative finite number');
+      await expect(client.postStats({ serverCount: Number.NaN })).rejects
+        .toThrowError('serverCount must be a non-negative finite number');
+      await expect(client.postStats({ serverCount: 1, userCount: -1 })).rejects
+        .toThrowError('userCount must be a non-negative finite number');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it('maps camelCase fields to snake_case in request body', async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
 
@@ -49,6 +68,15 @@ describe('ForgeClient', () => {
 
       const [, options] = mockFetch.mock.calls[0];
       expect(options.headers.get('Authorization')).toBe('test_token');
+    });
+
+    it('keeps the historical API path when a version option is provided', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
+
+      const versionedClient = new ForgeClient('test_token', undefined, { version: 'v2' });
+      await versionedClient.postStats({ serverCount: 1 });
+
+      expect(mockFetch.mock.calls[0][0]).toBe('https://discordforge.org/api/bots/stats');
     });
   });
 
@@ -121,7 +149,7 @@ describe('ForgeClient', () => {
         expect(err).toBeInstanceOf(ForgeAPIError);
         const apiErr = err as ForgeAPIError;
         expect(apiErr.status).toBe(400);
-        expect((apiErr.body as any).message).toBe('Invalid payload');
+        expect(apiErr.body).toMatchObject({ message: 'Invalid payload' });
       }
     });
 
@@ -146,6 +174,50 @@ describe('ForgeClient', () => {
       await retryClient.postStats({ serverCount: 1 });
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses a safe fallback delay for malformed retry-after headers', async () => {
+      vi.useFakeTimers();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: new Headers({ 'retry-after': 'not-a-delay' }),
+          text: vi.fn().mockResolvedValue('{}')
+        })
+        .mockResolvedValueOnce({ ok: true, status: 204 });
+
+      const request = new ForgeClient('test_token', undefined, { retries: 1 }).postStats({ serverCount: 1 });
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await request;
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
+    });
+
+    it('supports HTTP-date retry-after headers', async () => {
+      vi.useFakeTimers();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: new Headers({
+            'retry-after': new Date(Date.now() + 60_000).toUTCString()
+          }),
+          text: vi.fn().mockResolvedValue('{}')
+        })
+        .mockResolvedValueOnce({ ok: true, status: 204 });
+
+      const request = new ForgeClient('test_token', undefined, { retries: 1 }).postStats({ serverCount: 1 });
+      await vi.advanceTimersByTimeAsync(59_000);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await request;
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
     });
   });
 });

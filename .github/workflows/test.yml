@@ -16,6 +16,8 @@ jobs:
         with:
           node-version: 22.x
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
 
   build:
@@ -31,3 +33,5 @@ jobs:
       - run: npm run build
       - name: Validate package contents (dry-run publish)
         run: npm publish --dry-run
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev

@@ -3,17 +3,17 @@ import { ForgeClient } from '../../src/client';
 import { AutoPoster } from '../../src/autoposter';
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch as any;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 /** Minimal discord.js-like client stub. */
 function createMockDiscordClient(guildCount = 100, ready = true) {
-  const listeners: Record<string, Function[]> = {};
+  const listeners: Record<string, Array<() => void>> = {};
   return {
     guilds: { cache: { size: guildCount } },
     ws: { shards: { size: 2 } },
     users: { cache: { size: 5000 } },
     isReady: () => ready,
-    once(event: string, fn: Function) {
+    once(event: string, fn: () => void) {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(fn);
     },
@@ -41,6 +41,14 @@ describe('AutoPoster', () => {
   it('throws when interval is below the 5-minute minimum', () => {
     const discord = createMockDiscordClient();
     expect(() => new AutoPoster(forge, discord, { interval: 60_000 }))
+      .toThrowError('at least 300000ms');
+  });
+
+  it('rejects a non-finite or negative interval', () => {
+    const discord = createMockDiscordClient();
+    expect(() => new AutoPoster(forge, discord, { interval: Number.NaN }))
+      .toThrowError('interval must be a finite number');
+    expect(() => new AutoPoster(forge, discord, { interval: -1 }))
       .toThrowError('at least 300000ms');
   });
 
@@ -90,6 +98,22 @@ describe('AutoPoster', () => {
     // After 10 minutes total
     await vi.advanceTimersByTimeAsync(300_000);
     expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not start a second post while the previous request is pending', async () => {
+    let resolveRequest: ((response: Response) => void) | undefined;
+    mockFetch.mockImplementation(() => new Promise(resolve => {
+      resolveRequest = resolve;
+    }));
+
+    new AutoPoster(forge, createMockDiscordClient());
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    resolveRequest?.({ ok: true, status: 204 } as Response);
+    await vi.advanceTimersByTimeAsync(0);
   });
 
   it('stop() halts the posting loop', async () => {

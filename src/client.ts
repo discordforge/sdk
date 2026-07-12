@@ -36,19 +36,26 @@ export class ForgeClient {
 
         this.apiKey = apiKey;
         this.botId = botId;
-        this.options = { ...DEFAULT_OPTIONS, ...options };
+        const resolvedOptions = { ...DEFAULT_OPTIONS, ...options };
+        if (!Number.isFinite(resolvedOptions.timeout) || resolvedOptions.timeout <= 0) {
+            throw new Error("timeout must be a positive finite number");
+        }
+        if (!Number.isInteger(resolvedOptions.retries) || resolvedOptions.retries < 0) {
+            throw new Error("retries must be a non-negative integer");
+        }
+        this.options = resolvedOptions;
     }
 
     private async request<T>(method: string, path: string, body?: unknown, retriesLeft = this.options.retries): Promise<T> {
         const url = `${this.baseURL}${path}`;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.options.timeout);
+        const timeoutId = setTimeout(() => { controller.abort(); }, this.options.timeout);
 
         const headers = new Headers({
             "Authorization": this.apiKey,
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "DiscordForge-NodeSDK/1.0.0"
+            "User-Agent": "DiscordForge-NodeSDK"
         });
 
         const fetchOptions: RequestInit = { method, headers, signal: controller.signal };
@@ -61,16 +68,16 @@ export class ForgeClient {
             if (!response.ok) {
                 if (response.status === 429 && retriesLeft > 0) {
                     const retryAfter = response.headers.get('retry-after');
-                    const waitTime = retryAfter ? parseInt(retryAfter, 10) * 1000 : 3000;
+                    const waitTime = this.retryDelay(retryAfter);
                     await new Promise(r => setTimeout(r, waitTime));
-                    return this.request<T>(method, path, body, retriesLeft - 1);
+                    return await this.request<T>(method, path, body, retriesLeft - 1);
                 }
 
                 let errorBody: unknown = await response.text();
                 try { errorBody = JSON.parse(errorBody as string); } catch { /* raw text */ }
 
                 throw new ForgeAPIError(
-                    `Forge API Request Failed: ${response.status} ${response.statusText}`,
+                    `Forge API Request Failed: ${response.status.toString()} ${response.statusText}`,
                     response.status, errorBody, response.headers
                 );
             }
@@ -78,13 +85,15 @@ export class ForgeClient {
             if (response.status === 204) return {} as T;
             return await response.json() as T;
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             clearTimeout(timeoutId);
-            if (error.name === 'AbortError') throw new Error(`Request to ${path} timed out after ${this.options.timeout}ms.`);
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error(`Request to ${path} timed out after ${this.options.timeout.toString()}ms.`);
+            }
             if (error instanceof ForgeAPIError) throw error;
             if (retriesLeft > 0) {
                 await new Promise(r => setTimeout(r, 3000));
-                return this.request<T>(method, path, body, retriesLeft - 1);
+                return await this.request<T>(method, path, body, retriesLeft - 1);
             }
             throw error;
         }
@@ -106,13 +115,25 @@ export class ForgeClient {
      * ```
      */
     public async postStats(stats: BotStats): Promise<void> {
+        this.assertCounter(stats.serverCount, "serverCount", false);
+        this.assertCounter(stats.shardCount, "shardCount", true);
+        this.assertCounter(stats.userCount, "userCount", true);
+        this.assertCounter(stats.voiceConnections, "voiceConnections", true);
+
         const payload = {
             server_count: stats.serverCount,
             shard_count: stats.shardCount,
             user_count: stats.userCount,
             voice_connections: stats.voiceConnections
         };
-        await this.request<void>("POST", "/api/bots/stats", payload);
+        await this.request("POST", "/api/bots/stats", payload);
+    }
+
+    private assertCounter(value: number | undefined, name: string, optional: boolean): void {
+        if (optional && value === undefined) return;
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+            throw new Error(`${name} must be a non-negative finite number`);
+        }
     }
 
     /**
@@ -165,5 +186,17 @@ export class ForgeClient {
         if (!Array.isArray(commands)) throw new Error("commands must be an array");
         if (commands.length > 200) throw new Error("You can only sync up to 200 commands at once.");
         return await this.request<{ success: boolean; synced: number }>("POST", "/api/external/bots/commands", { commands });
+    }
+
+    private retryDelay(retryAfter: string | null): number {
+        if (!retryAfter) return 3000;
+
+        const seconds = Number(retryAfter);
+        if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+
+        const timestamp = Date.parse(retryAfter);
+        if (Number.isFinite(timestamp)) return Math.max(0, timestamp - Date.now());
+
+        return 3000;
     }
 }
