@@ -8,6 +8,7 @@ Runnable code samples demonstrating common SDK usage patterns.
 | `2-checking-votes.js` | Check if a user voted in the last 8 hours |
 | `3-syncing-commands.ts` | Sync slash commands to the DiscordForge panel (TypeScript) |
 | `4-discord-js-integration.js` | Auto-post stats from a discord.js bot on an interval |
+| `6-listing-and-announcements.ts` | Update v1 listing fields and publish announcements (TypeScript) |
 
 ## Running locally
 
@@ -16,7 +17,7 @@ Runnable code samples demonstrating common SDK usage patterns.
    npm install
    npm run build
    ```
-2. Replace `YOUR_API_KEY` and `YOUR_BOT_ID` with your real credentials.
+2. Replace `YOUR_API_KEY` and `YOUR_BOT_ID` with your real credentials. v1 methods send `Authorization: Bearer <BOT_API_KEY>`; the vote-check example retains its legacy raw-Authorization contract.
 3. Run any example:
    ```bash
    node examples/1-posting-stats.js

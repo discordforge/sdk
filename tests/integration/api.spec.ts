@@ -17,7 +17,7 @@ suite('ForgeClient (live)', () => {
     client = new ForgeClient(apiKey!, botId!, { retries: 0 });
   });
 
-  it('GET /api/bots/:id returns bot info matching the configured bot ID', async () => {
+  it('GET /api/bots/:id returns public bot info matching the configured bot ID', async () => {
     const bot = await client.getBot();
 
     expect(bot).toBeDefined();
@@ -25,7 +25,7 @@ suite('ForgeClient (live)', () => {
     expect(typeof bot.name).toBe('string');
   });
 
-  it('POST /api/bots/stats accepts a valid stats payload or returns 429', { timeout: 15000 }, async () => {
+  it('POST /api/v1/bots/stats accepts a valid stats payload or returns 429', { timeout: 15000 }, async () => {
     try {
       await client.postStats({
         serverCount: 1,

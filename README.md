@@ -56,6 +56,18 @@ const bot = await client.getBot();
 console.log(`${bot.name} – ${bot.voteCount} votes`);
 ```
 
+## Developer API v1
+
+The SDK uses DiscordForge Developer API v1 routes under `/api/v1` for canonical developer API calls. Authentication is centralized in `ForgeClient`; every v1 request sends:
+
+```http
+Authorization: Bearer <BOT_API_KEY>
+```
+
+For v1 requests, do not pass raw `Authorization` values, `x-api-key` headers, or API keys in query strings. `checkVote()` retains its legacy raw-Authorization contract because that endpoint does not yet have a v1 replacement.
+
+Migration note: the announced legacy aliases remain available only until **14 October 2026, 00:00 UTC**. Upgrade calls such as stats and command sync to `/api/v1` before that time. `checkVote()` and `getBot()` are existing public endpoints that do not have v1 replacements.
+
 ## API Reference
 
 ### `new ForgeClient(apiKey, botId?, options?)`
@@ -74,7 +86,25 @@ console.log(`${bot.name} – ${bot.voteCount} votes`);
 | `postStats(stats)` | `Promise<void>` | Update your bot's server/shard/user stats | 1 req / 5 min |
 | `checkVote(userId)` | `Promise<VoteMetadata>` | Check if a user voted in the last 8h | 60 req / min |
 | `getBot()` | `Promise<BotInfo>` | Fetch your bot's public profile | – |
-| `syncCommands(commands)` | `Promise<{ success, synced }>` | Sync up to 200 slash commands | – |
+| `syncCommands(commands)` | `Promise<SyncCommandsResponse>` | Sync up to 200 slash commands | – |
+| `updateListing(listing)` | `Promise<BotListingUpdateResponse>` | Update editable listing fields | – |
+| `publishAnnouncement(announcement)` | `Promise<BotAnnouncementCreateResponse>` | Publish a bot announcement without images | – |
+
+### v1 Routes Used
+
+| Method | Route |
+|--------|-------|
+| `postStats(stats)` | `POST /api/v1/bots/stats` |
+| `syncCommands(commands)` | `POST /api/v1/bots/commands` |
+| `updateListing(listing)` | `PATCH /api/v1/bots/listing` |
+| `publishAnnouncement(announcement)` | `POST /api/v1/bots/announcements` |
+
+### Existing public routes
+
+| Method | Route | Authentication |
+|--------|-------|----------------|
+| `checkVote(userId)` | `GET /api/bots/:id/votes/check` | Raw `Authorization: <BOT_API_KEY>` (legacy contract) |
+| `getBot()` | `GET /api/bots/:id` | None |
 
 ### `new AutoPoster(forgeClient, discordClient, options?)`
 
@@ -109,7 +139,50 @@ poster.on("error", (err) => console.error(err));
 All interfaces are exported for use in your own code:
 
 ```ts
-import type { BotStats, BotInfo, VoteMetadata, SyncCommand } from "discordforge-sdk";
+import type {
+  BotStats,
+  BotInfo,
+  VoteMetadata,
+  SyncCommand,
+  BotListing,
+  BotListingUpdateRequest,
+  BotListingUpdateResponse,
+  BotAnnouncementCreateRequest,
+  BotAnnouncementCreateResponse
+} from "discordforge-sdk";
+```
+
+### Updating Your Listing
+
+`updateListing()` only sends fields supported by the v1 listing endpoint:
+
+```ts
+await client.updateListing({
+  prefix: "!",
+  shortDescription: "Moderation and utility bot",
+  description: "Longer Markdown-capable listing description.",
+  tags: "moderation, utility",
+  supportServer: "https://discord.gg/example",
+  website: "https://example.com",
+  socials: '[{"type":"github","url":"https://github.com/example/bot"}]',
+  languages: "en",
+  hasPaidFeatures: false,
+  paidFeaturesAvailable: false,
+  webInterface: true,
+  installableAsUserApp: false
+});
+```
+
+### Publishing Announcements
+
+Announcements support optional `title`, required `content`, and optional `type`. Supported types are `UPDATE`, `MAINTENANCE`, `NEWS`, `EVENT`, and `GENERAL`. Images are not supported.
+
+```ts
+await client.publishAnnouncement({
+  title: "Version 2.0 is live",
+  content: "New moderation tools and dashboard improvements are now available.",
+  type: "UPDATE"
+});
 ```
 
 ## Usage with discord.js
@@ -163,6 +236,7 @@ See the [`examples/`](./examples) directory:
 - [Checking votes](./examples/2-checking-votes.js)
 - [Syncing commands](./examples/3-syncing-commands.ts)
 - [discord.js integration](./examples/4-discord-js-integration.js)
+- [Listing updates and announcements](./examples/6-listing-and-announcements.ts)
 
 ## Links
 

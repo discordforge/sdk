@@ -51,6 +51,12 @@ export interface BotInfo {
     [key: string]: any;
 }
 
+/** Response returned by {@link ForgeClient.syncCommands}. */
+export interface SyncCommandsResponse {
+    success: boolean;
+    synced: number;
+}
+
 /** Structured error body returned by the DiscordForge API on failure. */
 export interface APIErrorBody {
     message: string;
@@ -80,6 +86,72 @@ export interface DiscordCommand {
  * Pass either a {@link CustomCommand} or a native {@link DiscordCommand}.
  */
 export type SyncCommand = CustomCommand | DiscordCommand;
+
+/** Fields accepted by {@link ForgeClient.updateListing}. */
+export interface BotListingUpdateRequest {
+    prefix?: string;
+    shortDescription?: string;
+    description?: string;
+    /** Comma-separated tag names, for example `"moderation, utility"`. */
+    tags?: string;
+    /** Discord invite URL, or an empty string to clear it. */
+    supportServer?: string;
+    /** Website URL, or an empty string to clear it. */
+    website?: string;
+    /** JSON string of social links, for example `[{"type":"github","url":"https://github.com/example"}]`. */
+    socials?: string;
+    /** Comma-separated language codes, for example `"en, pl"`. */
+    languages?: string;
+    hasPaidFeatures?: boolean;
+    paidFeaturesAvailable?: boolean;
+    webInterface?: boolean;
+    installableAsUserApp?: boolean;
+}
+
+/** Public listing returned directly by {@link ForgeClient.updateListing}. */
+export interface BotListing {
+    id: string;
+    clientId: string;
+    prefix: string | null;
+    shortDescription: string;
+    description: string;
+    tags: string;
+    supportServer: string | null;
+    website: string | null;
+    socials: string | null;
+    languages: string;
+    hasPaidFeatures: boolean;
+    paidFeaturesAvailable: boolean;
+    webInterface: boolean;
+    installableAsUserApp: boolean;
+}
+
+/** Response returned by {@link ForgeClient.updateListing}. */
+export type BotListingUpdateResponse = BotListing;
+
+/** Allowed announcement categories for {@link ForgeClient.publishAnnouncement}. */
+export type BotAnnouncementType = "UPDATE" | "MAINTENANCE" | "NEWS" | "EVENT" | "GENERAL";
+
+/** Payload accepted by {@link ForgeClient.publishAnnouncement}. Images are not supported. */
+export interface BotAnnouncementCreateRequest {
+    title?: string;
+    content: string;
+    type?: BotAnnouncementType;
+}
+
+/** Announcement returned by DiscordForge. */
+export interface BotAnnouncement {
+    id: string;
+    title: string | null;
+    content: string;
+    type: BotAnnouncementType;
+    createdAt: string;
+    updatedAt: string;
+    botId: string | null;
+}
+
+/** Response returned by {@link ForgeClient.publishAnnouncement}. */
+export type BotAnnouncementCreateResponse = BotAnnouncement;
 
 /**
  * Configuration for the {@link AutoPoster}.
