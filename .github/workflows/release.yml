@@ -1,15 +1,12 @@
 name: Release
 
-# Manual release trigger for one package. Bumps its version, commits, tags it as
-# <package>-v<version> (e.g. sdk-v2.0.1) and creates a GitHub Release.
-# The Release event then triggers publish.yml, which uploads to npm
-# (gated by required reviewers on the "npm" environment).
+# One-click version bump. Pick a package and a bump type; this commits the new version
+# to main, which starts publish.yml. That workflow publishes to npm, tags the commit as
+# <package>-v<version> and creates the GitHub Release.
 #
-# Usage:
-#   Actions -> Release -> Run workflow
-#     package:        sdk / types / cli
-#     bump:           patch / minor / major  (ignored if custom_version is set)
-#     custom_version: exact version like "2.0.1" or "2.1.0-rc.1" (leave empty to auto-bump)
+# The push uses RELEASE_TOKEN (a fine-grained GitHub token with Contents: read and write
+# on this repo), because pushes made with the default GITHUB_TOKEN do not start other
+# workflows.
 
 on:
   workflow_dispatch:
@@ -24,7 +21,7 @@ on:
           - types
           - cli
       bump:
-        description: 'Version bump type (ignored if custom_version is set)'
+        description: 'Version bump (ignored if custom_version is set)'
         required: false
         type: choice
         default: patch
@@ -33,13 +30,13 @@ on:
           - minor
           - major
       custom_version:
-        description: 'Exact version (e.g. 2.0.1). Leave empty to auto-bump.'
+        description: 'Exact version, e.g. 2.0.1 or 2.1.0-rc.1. Leave empty to bump.'
         required: false
         type: string
 
 jobs:
-  release:
-    name: Bump, tag, and create release
+  bump:
+    name: Bump version
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -47,105 +44,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
 
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: 22.x
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Compute new version
-        id: version
+      - name: Bump and push
         env:
           PKG: ${{ inputs.package }}
           BUMP: ${{ inputs.bump }}
           CUSTOM: ${{ inputs.custom_version }}
         run: |
-          set -e
-          CURRENT=$(node -p "require('./packages/$PKG/package.json').version")
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          NEW=$(CURRENT="$CURRENT" node -e "
-          const current = process.env.CURRENT;
-          const bump = process.env.BUMP;
-          const custom = (process.env.CUSTOM || '').trim();
+          TARGET="${CUSTOM:-$BUMP}"
+          npm version "$TARGET" --no-git-tag-version --workspace "packages/$PKG"
+          VERSION=$(node -p "require('./packages/$PKG/package.json').version")
+          NAME=$(node -p "require('./packages/$PKG/package.json').name")
 
-          if (custom) {
-            console.log(custom);
-          } else {
-            const parts = current.split('.');
-            if (parts.length < 3) {
-              console.error('Cannot auto-bump non-semver version:', current);
-              process.exit(1);
-            }
-            let [major, minor, patch] = parts.map(Number);
-            if (bump === 'major') { major += 1; minor = 0; patch = 0; }
-            else if (bump === 'minor') { minor += 1; patch = 0; }
-            else { patch += 1; }
-            console.log(\`\${major}.\${minor}.\${patch}\`);
-          }
-          ")
-
-          echo "Package: $PKG"
-          echo "Current: $CURRENT"
-          echo "New:     $NEW"
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "tag=$PKG-v$NEW" >> "$GITHUB_OUTPUT"
-
-      - name: Check tag does not already exist
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1 || git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
-            echo "::error::Tag $TAG already exists. Pick a different version."
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::$NAME@$VERSION is already on npm. Pick another version."
             exit 1
           fi
-          echo "✓ Tag $TAG is free"
 
-      - name: Update version in package.json (if different)
-        id: update
-        env:
-          PKG: ${{ inputs.package }}
-        run: |
-          NEW="${{ steps.version.outputs.version }}"
-          CURRENT="${{ steps.version.outputs.current }}"
-
-          if [ "$NEW" = "$CURRENT" ]; then
-            echo "Version unchanged ($CURRENT). Skipping file bump - will tag current HEAD."
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-          else
-            # Updates packages/$PKG/package.json and the root package-lock.json only
-            npm version "$NEW" --no-git-tag-version --workspace "packages/$PKG"
-            grep "\"version\"" "packages/$PKG/package.json" | head -1
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Commit version bump
-        if: steps.update.outputs.bumped == 'true'
-        env:
-          PKG: ${{ inputs.package }}
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
           git add "packages/$PKG/package.json" package-lock.json
-          git commit -m "chore: release ${TAG}"
+          git commit -m "chore: release $PKG-v$VERSION"
           git push origin HEAD:main
-
-      - name: Create and push tag
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          git tag "$TAG"
-          git push origin "$TAG"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.0.9
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          make_latest: ${{ inputs.package == 'sdk' && 'true' || 'false' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          echo "Pushed $NAME@$VERSION. publish.yml will publish it to npm and create the release."

@@ -1,78 +1,107 @@
 name: Publish to npm
 
-# Triggered when a GitHub Release is published (or run by hand). Builds every
-# workspace and publishes each package whose current version is not on npm yet,
-# in dependency order: @discordforgejs/types, @discordforgejs/sdk, then @discordforgejs/cli.
+# Automatic releases. Whenever main changes a package version, this workflow tests and
+# builds everything, then for each package whose version is not on npm yet it:
+#   1. publishes it to npm (types -> sdk -> cli, so dependencies go first),
+#   2. tags the commit as <package>-v<version> (e.g. sdk-v2.0.1),
+#   3. creates a GitHub Release for that tag.
+# Packages whose version is already on npm are skipped, so pushes that do not bump a
+# version publish nothing.
 #
-# Setup:
-#   1. On an npm account that can write to the @discordforgejs org, create a
-#      Granular Access Token with read and write access to @discordforgejs.
-#   2. Add it as a repo secret: Settings -> Secrets and variables -> Actions
-#      Name: NPM_TOKEN
-#   3. Gated by "npm" environment reviewers.
+# Auth uses npm Trusted Publishing (OIDC): no npm token is stored anywhere.
+# One-time setup on npmjs.com, for each of @discordforgejs/types, /sdk and /cli:
+#   Package -> Settings -> Trusted Publisher -> GitHub Actions
+#     Organization or user: discordforge
+#     Repository:           sdk
+#     Workflow filename:    publish.yml
+#     Environment:          npm
+#
+# Bump a version with the "Release" workflow (Actions -> Release) or by editing
+# packages/<name>/package.json in a commit to main.
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - 'packages/*/package.json'
   workflow_dispatch:
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
 
 jobs:
   publish:
-    name: Build & Publish
+    name: Test, publish and release
     runs-on: ubuntu-latest
     environment: npm
     permissions:
-      contents: read
-      id-token: write
+      contents: write   # push tags and create GitHub Releases
+      id-token: write   # npm Trusted Publishing and provenance
 
     steps:
       - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: 22.x
           registry-url: https://registry.npmjs.org
 
-      - name: Verify release tag matches package version
-        if: github.event_name == 'release'
-        run: |
-          set -e
-          TAG="${GITHUB_REF_NAME}"
-          PKG="${TAG%-v*}"
-          TAG_VERSION="${TAG##*-v}"
-          if [ ! -f "packages/$PKG/package.json" ]; then
-            echo "::error::Tag $TAG does not name a package (expected <package>-v<version>, e.g. sdk-v2.0.0)"
-            exit 1
-          fi
-          PKG_VERSION=$(node -p "require('./packages/$PKG/package.json').version")
-          echo "Git tag:                       $TAG"
-          echo "packages/$PKG/package.json:   $PKG_VERSION"
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match packages/$PKG/package.json ($PKG_VERSION)"
-            exit 1
-          fi
+      # Trusted Publishing needs npm 11.5.1 or newer; Node 22 ships npm 10.
+      - name: Update npm
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
+      - name: Test
         run: npm test
 
       - name: Build
         run: npm run build
 
-      - name: Publish unpublished versions
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Publish, tag and release new versions
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          published=0
           for DIR in types sdk cli; do
             NAME=$(node -p "require('./packages/$DIR/package.json').name")
             VERSION=$(node -p "require('./packages/$DIR/package.json').version")
+            TAG="$DIR-v$VERSION"
+
             if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
               echo "✓ $NAME@$VERSION is already on npm, skipping"
+              continue
+            fi
+
+            echo "→ Publishing $NAME@$VERSION"
+            npm publish --workspace "packages/$DIR" --access public --provenance
+            published=$((published + 1))
+
+            if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "  tag $TAG already exists"
             else
-              echo "→ Publishing $NAME@$VERSION"
-              npm publish --workspace "packages/$DIR" --access public --provenance
+              git tag "$TAG"
+              git push origin "$TAG"
+            fi
+
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "  release $TAG already exists"
+            else
+              LATEST=false
+              [ "$DIR" = "sdk" ] && LATEST=true
+              gh release create "$TAG" --title "$NAME@$VERSION" --generate-notes --latest="$LATEST"
             fi
           done
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+          echo "Published $published package(s)."
