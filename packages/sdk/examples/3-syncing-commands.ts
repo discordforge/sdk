@@ -1,4 +1,4 @@
-import { ForgeClient, SyncCommand } from "discordforge-sdk";
+import { ForgeClient, SyncCommand } from "@discordforgejs/sdk";
 
 const client = new ForgeClient("YOUR_API_KEY", "YOUR_BOT_ID");
 

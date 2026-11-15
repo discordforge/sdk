@@ -1,0 +1,52 @@
+{
+  "name": "@discordforgejs/types",
+  "version": "1.0.0",
+  "description": "TypeScript type definitions for the DiscordForge Developer API",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/discordforge/sdk.git",
+    "directory": "packages/types"
+  },
+  "homepage": "https://discordforge.org/support/developers",
+  "bugs": {
+    "url": "https://github.com/discordforge/sdk/issues"
+  },
+  "keywords": [
+    "discord",
+    "discordforge",
+    "discord-bot",
+    "bot-list",
+    "api",
+    "types",
+    "typescript"
+  ],
+  "author": "DiscordForge",
+  "license": "MIT"
+}

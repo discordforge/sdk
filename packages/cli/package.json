@@ -1,0 +1,49 @@
+{
+  "name": "@discordforgejs/cli",
+  "version": "1.0.1",
+  "description": "Command-line tool for the DiscordForge Developer API",
+  "bin": {
+    "discordforge": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.3.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@discordforgejs/sdk": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/discordforge/sdk.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://discordforge.org/support/developers",
+  "bugs": {
+    "url": "https://github.com/discordforge/sdk/issues"
+  },
+  "keywords": [
+    "discord",
+    "discordforge",
+    "discord-bot",
+    "cli",
+    "bot-list",
+    "api"
+  ],
+  "author": "DiscordForge",
+  "license": "MIT"
+}

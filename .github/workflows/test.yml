@@ -29,5 +29,6 @@ jobs:
           node-version: 22.x
       - run: npm ci
       - run: npm run build
+      - run: npm run typecheck
       - name: Validate package contents (dry-run publish)
-        run: npm publish --dry-run
+        run: npm publish --dry-run --workspaces

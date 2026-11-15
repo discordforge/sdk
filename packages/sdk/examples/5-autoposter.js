@@ -8,7 +8,7 @@
  */
 
 const { Client, GatewayIntentBits } = require("discord.js");
-const { ForgeClient, AutoPoster } = require("discordforge-sdk");
+const { ForgeClient, AutoPoster } = require("@discordforgejs/sdk");
 
 const bot = new Client({ intents: [GatewayIntentBits.Guilds] });
 const forge = new ForgeClient(process.env.DISCORDFORGE_API_KEY);

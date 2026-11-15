@@ -1,5 +1,5 @@
-import { ForgeClient } from "discordforge-sdk";
-import type { BotAnnouncementCreateRequest, BotListingUpdateRequest } from "discordforge-sdk";
+import { ForgeClient } from "@discordforgejs/sdk";
+import type { BotAnnouncementCreateRequest, BotListingUpdateRequest } from "@discordforgejs/sdk";
 
 const client = new ForgeClient("YOUR_API_KEY", "YOUR_BOT_ID");
 

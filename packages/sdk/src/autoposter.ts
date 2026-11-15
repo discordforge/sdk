@@ -1,7 +1,9 @@
 import { ForgeClient } from "./client";
-import { AutoPosterOptions, BotStats } from "./types";
+import type { AutoPosterOptions, BotStats, HeartbeatResponse, HeartbeatStatus } from "./types";
 
 const MIN_INTERVAL = 300_000; // 5 minutes – matches the API rate limit
+const DEFAULT_HEARTBEAT_INTERVAL = 300_000; // one uptime check every 5 minutes
+const MIN_HEARTBEAT_INTERVAL = 60_000;
 
 /**
  * Automatically posts bot statistics to DiscordForge on a fixed interval.
@@ -11,12 +13,14 @@ const MIN_INTERVAL = 300_000; // 5 minutes – matches the API rate limit
  *
  * @example
  * ```js
- * const { ForgeClient, AutoPoster } = require("discordforge-sdk");
+ * const { ForgeClient, AutoPoster } = require("@discordforgejs/sdk");
  * const { Client } = require("discord.js");
  *
  * const bot = new Client({ intents: ["Guilds"] });
  * const forge = new ForgeClient("YOUR_API_KEY");
- * const poster = new AutoPoster(forge, bot);
+ *
+ * // heartbeat: true also sends uptime heartbeats
+ * const poster = new AutoPoster(forge, bot, { heartbeat: true });
  *
  * poster.on("post", (stats) => console.log(`Posted: ${stats.serverCount} servers`));
  * poster.on("error", (err) => console.error("AutoPoster error:", err));
@@ -31,9 +35,16 @@ export class AutoPoster {
     private readonly discordClient: DiscordLikeClient;
     private readonly interval: number;
     private readonly startImmediately: boolean;
+    private readonly heartbeatInterval: number | null;
     private timer: ReturnType<typeof setInterval> | null = null;
-    private listeners: { post: Array<(stats: BotStats) => void>; error: Array<(err: Error) => void> } = {
+    private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    private listeners: {
+        post: Array<(stats: BotStats) => void>;
+        heartbeat: Array<(response: HeartbeatResponse) => void>;
+        error: Array<(err: Error) => void>;
+    } = {
         post: [],
+        heartbeat: [],
         error: []
     };
 
@@ -51,7 +62,20 @@ export class AutoPoster {
         this.interval = interval;
         this.startImmediately = options?.startImmediately ?? true;
 
+        if (options?.heartbeat) {
+            const heartbeatInterval = typeof options.heartbeat === "object" && options.heartbeat.interval !== undefined
+                ? options.heartbeat.interval
+                : DEFAULT_HEARTBEAT_INTERVAL;
+            if (heartbeatInterval < MIN_HEARTBEAT_INTERVAL) {
+                throw new Error(`AutoPoster heartbeat interval must be at least ${MIN_HEARTBEAT_INTERVAL}ms (1 minute).`);
+            }
+            this.heartbeatInterval = heartbeatInterval;
+        } else {
+            this.heartbeatInterval = null;
+        }
+
         if (options?.onPost) this.listeners.post.push(options.onPost);
+        if (options?.onHeartbeat) this.listeners.heartbeat.push(options.onHeartbeat);
         if (options?.onError) this.listeners.error.push(options.onError);
 
         // Auto-start: wait for the client to be ready, then begin posting.
@@ -62,12 +86,15 @@ export class AutoPoster {
      * Register an event listener.
      *
      * - `"post"` – fired after each successful stats post.
-     * - `"error"` – fired when a posting attempt fails.
+     * - `"heartbeat"` – fired after each successful heartbeat (when `heartbeat` is enabled).
+     * - `"error"` – fired when a stats post or heartbeat fails.
      */
     public on(event: "post", listener: (stats: BotStats) => void): this;
+    public on(event: "heartbeat", listener: (response: HeartbeatResponse) => void): this;
     public on(event: "error", listener: (err: Error) => void): this;
     public on(event: string, listener: (...args: any[]) => void): this {
         if (event === "post") this.listeners.post.push(listener as (stats: BotStats) => void);
+        if (event === "heartbeat") this.listeners.heartbeat.push(listener as (response: HeartbeatResponse) => void);
         if (event === "error") this.listeners.error.push(listener as (err: Error) => void);
         return this;
     }
@@ -81,6 +108,11 @@ export class AutoPoster {
         }
 
         this.timer = setInterval(() => this.post(), this.interval);
+
+        if (this.heartbeatInterval !== null) {
+            this.sendHeartbeat();
+            this.heartbeatTimer = setInterval(() => this.sendHeartbeat(), this.heartbeatInterval);
+        }
     }
 
     /** Stop the posting loop. Can be restarted with `start()`. */
@@ -89,12 +121,17 @@ export class AutoPoster {
             clearInterval(this.timer);
             this.timer = null;
         }
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
     }
 
     /** Stop the poster and remove all listeners. */
     public destroy(): void {
         this.stop();
         this.listeners.post = [];
+        this.listeners.heartbeat = [];
         this.listeners.error = [];
     }
 
@@ -110,12 +147,30 @@ export class AutoPoster {
             await this.forge.postStats(stats);
             for (const fn of this.listeners.post) fn(stats);
         } catch (err) {
-            const error = err instanceof Error ? err : new Error(String(err));
-            if (this.listeners.error.length > 0) {
-                for (const fn of this.listeners.error) fn(error);
-            }
-            // Swallow the error – never crash the host process.
+            this.reportError(err);
         }
+    }
+
+    /** Send an uptime heartbeat, using the bot's Discord presence when it is known. */
+    private async sendHeartbeat(): Promise<void> {
+        try {
+            const response = await this.forge.heartbeat(this.collectPresence());
+            for (const fn of this.listeners.heartbeat) fn(response);
+        } catch (err) {
+            this.reportError(err);
+        }
+    }
+
+    private reportError(err: unknown): void {
+        const error = err instanceof Error ? err : new Error(String(err));
+        for (const fn of this.listeners.error) fn(error);
+        // Swallow the error – never crash the host process.
+    }
+
+    /** Map the client's own presence to a heartbeat status (online, idle or dnd). */
+    private collectPresence(): HeartbeatStatus | undefined {
+        const status = (this.discordClient as any).user?.presence?.status;
+        return status === "online" || status === "idle" || status === "dnd" ? status : undefined;
     }
 
     /** Read guild/shard counts from the Discord client using duck-typed access. */
@@ -150,8 +205,10 @@ export class AutoPoster {
             return;
         }
 
-        // Otherwise, wait for the "ready" event (works with discord.js, eris, etc.)
+        // Otherwise wait for the ready event. discord.js 14.22+ names it "clientReady";
+        // older discord.js and eris use "ready". start() ignores the second one.
         if (typeof client.once === "function") {
+            client.once("clientReady", () => this.start());
             client.once("ready", () => this.start());
         } else {
             // Fallback: start right away.
@@ -169,6 +226,7 @@ export interface DiscordLikeClient {
     ws?: { shards?: { size: number } };
     shards?: { size: number };
     users?: { cache?: { size: number }; size?: number };
+    user?: { presence?: { status?: string } } | null;
     isReady?: () => boolean;
     ready?: boolean;
     once?: (event: string, listener: (...args: any[]) => void) => any;

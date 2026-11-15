@@ -1,18 +1,20 @@
 name: Publish to npm
 
-# Triggered when a GitHub Release is published. Builds the package and publishes
-# to npm using an automation token (NPM_TOKEN secret).
+# Triggered when a GitHub Release is published (or run by hand). Builds every
+# workspace and publishes each package whose current version is not on npm yet,
+# in dependency order: @discordforgejs/types, @discordforgejs/sdk, then @discordforgejs/cli.
 #
 # Setup:
-#   1. Create automation token: https://www.npmjs.com/settings/~/tokens
-#      -> Generate new token -> Classic -> Automation
-#   2. Add as repo secret: Settings -> Secrets and variables -> Actions
+#   1. On an npm account that can write to the @discordforgejs org, create a
+#      Granular Access Token with read and write access to @discordforgejs.
+#   2. Add it as a repo secret: Settings -> Secrets and variables -> Actions
 #      Name: NPM_TOKEN
 #   3. Gated by "npm" environment reviewers.
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -21,6 +23,7 @@ jobs:
     environment: npm
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -30,21 +33,24 @@ jobs:
           node-version: 22.x
           registry-url: https://registry.npmjs.org
 
-      - name: Verify version consistency (tag = package.json)
+      - name: Verify release tag matches package version
+        if: github.event_name == 'release'
         run: |
           set -e
           TAG="${GITHUB_REF_NAME}"
-          TAG_VERSION="${TAG#v}"
-          PKG_VERSION=$(node -p "require('./package.json').version")
-
-          echo "Git tag:      $TAG (version: $TAG_VERSION)"
-          echo "package.json: $PKG_VERSION"
-
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match package.json ($PKG_VERSION)"
+          PKG="${TAG%-v*}"
+          TAG_VERSION="${TAG##*-v}"
+          if [ ! -f "packages/$PKG/package.json" ]; then
+            echo "::error::Tag $TAG does not name a package (expected <package>-v<version>, e.g. sdk-v2.0.0)"
             exit 1
           fi
-          echo "✓ Versions match: $TAG_VERSION"
+          PKG_VERSION=$(node -p "require('./packages/$PKG/package.json').version")
+          echo "Git tag:                       $TAG"
+          echo "packages/$PKG/package.json:   $PKG_VERSION"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match packages/$PKG/package.json ($PKG_VERSION)"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -55,7 +61,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Publish unpublished versions
+        run: |
+          set -e
+          for DIR in types sdk cli; do
+            NAME=$(node -p "require('./packages/$DIR/package.json').name")
+            VERSION=$(node -p "require('./packages/$DIR/package.json').version")
+            if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+              echo "✓ $NAME@$VERSION is already on npm, skipping"
+            else
+              echo "→ Publishing $NAME@$VERSION"
+              npm publish --workspace "packages/$DIR" --access public --provenance
+            fi
+          done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

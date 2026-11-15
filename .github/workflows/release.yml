@@ -1,17 +1,28 @@
 name: Release
 
-# Manual release trigger. Bumps version, commits, tags, and creates a GitHub Release.
-# The Release event then triggers publish.yml which actually uploads to npm
+# Manual release trigger for one package. Bumps its version, commits, tags it as
+# <package>-v<version> (e.g. sdk-v2.0.1) and creates a GitHub Release.
+# The Release event then triggers publish.yml, which uploads to npm
 # (gated by required reviewers on the "npm" environment).
 #
 # Usage:
 #   Actions -> Release -> Run workflow
+#     package:        sdk / types / cli
 #     bump:           patch / minor / major  (ignored if custom_version is set)
-#     custom_version: exact version like "1.1.1" or "2.0.0-rc.1" (leave empty to auto-bump)
+#     custom_version: exact version like "2.0.1" or "2.1.0-rc.1" (leave empty to auto-bump)
 
 on:
   workflow_dispatch:
     inputs:
+      package:
+        description: 'Package to release'
+        required: true
+        type: choice
+        default: sdk
+        options:
+          - sdk
+          - types
+          - cli
       bump:
         description: 'Version bump type (ignored if custom_version is set)'
         required: false
@@ -22,7 +33,7 @@ on:
           - minor
           - major
       custom_version:
-        description: 'Exact version (e.g. 1.1.1). Leave empty to auto-bump.'
+        description: 'Exact version (e.g. 2.0.1). Leave empty to auto-bump.'
         required: false
         type: string
 
@@ -50,16 +61,18 @@ jobs:
 
       - name: Compute new version
         id: version
+        env:
+          PKG: ${{ inputs.package }}
+          BUMP: ${{ inputs.bump }}
+          CUSTOM: ${{ inputs.custom_version }}
         run: |
           set -e
-          CURRENT=$(node -p "require('./package.json').version")
-          BUMP="${{ inputs.bump }}"
-          CUSTOM="${{ inputs.custom_version }}"
+          CURRENT=$(node -p "require('./packages/$PKG/package.json').version")
 
-          NEW=$(node -e "
-          const current = '$CURRENT';
-          const bump = '$BUMP';
-          const custom = '$CUSTOM'.trim();
+          NEW=$(CURRENT="$CURRENT" node -e "
+          const current = process.env.CURRENT;
+          const bump = process.env.BUMP;
+          const custom = (process.env.CUSTOM || '').trim();
 
           if (custom) {
             console.log(custom);
@@ -77,11 +90,12 @@ jobs:
           }
           ")
 
+          echo "Package: $PKG"
           echo "Current: $CURRENT"
           echo "New:     $NEW"
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "tag=v$NEW" >> "$GITHUB_OUTPUT"
+          echo "tag=$PKG-v$NEW" >> "$GITHUB_OUTPUT"
 
       - name: Check tag does not already exist
         run: |
@@ -94,6 +108,8 @@ jobs:
 
       - name: Update version in package.json (if different)
         id: update
+        env:
+          PKG: ${{ inputs.package }}
         run: |
           NEW="${{ steps.version.outputs.version }}"
           CURRENT="${{ steps.version.outputs.current }}"
@@ -102,18 +118,19 @@ jobs:
             echo "Version unchanged ($CURRENT). Skipping file bump - will tag current HEAD."
             echo "bumped=false" >> "$GITHUB_OUTPUT"
           else
-            # npm version uses --no-git-tag-version to update package.json + package-lock.json only
-            npm version "$NEW" --no-git-tag-version
-            echo "--- package.json ---"
-            grep "\"version\"" package.json | head -1
+            # Updates packages/$PKG/package.json and the root package-lock.json only
+            npm version "$NEW" --no-git-tag-version --workspace "packages/$PKG"
+            grep "\"version\"" "packages/$PKG/package.json" | head -1
             echo "bumped=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Commit version bump
         if: steps.update.outputs.bumped == 'true'
+        env:
+          PKG: ${{ inputs.package }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          git add package.json package-lock.json
+          git add "packages/$PKG/package.json" package-lock.json
           git commit -m "chore: release ${TAG}"
           git push origin HEAD:main
 
@@ -129,6 +146,6 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
-          make_latest: "true"
+          make_latest: ${{ inputs.package == 'sdk' && 'true' || 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
